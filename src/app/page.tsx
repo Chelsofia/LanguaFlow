@@ -4,9 +4,13 @@ import ChatBox from "@/app/components/Chatbox";
 import InputBox from "@/app/components/Inputfield";
 import { useState } from "react";
 
+interface Message {
+  text: string;
+}
+
 export default function Home() {
-  const [messages, setMessages] = useState<any[]>([]);
-  const [detectedLanguage, setDetectedLanguage] = useState("");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [detectedLanguage, setDetectedLanguage] = useState<string>("");
 
   const clearMessages = () => {
     setMessages([]);
@@ -30,13 +34,11 @@ export default function Home() {
           detectedLanguage={detectedLanguage}
         />
 
-      
         <InputBox
           setMessages={setMessages}
           setDetectedLanguage={setDetectedLanguage}
         />
       </section>
-     
     </>
   );
 }
