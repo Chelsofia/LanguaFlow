@@ -11,31 +11,22 @@ const availableLanguages = [
   { code: "ru", label: "Russian" },
 ];
 
-interface TranslatorProps {
-  inputContent: string;
-  detectedLang: string;
-}
-
-export default function Translator({
-  inputContent,
-  detectedLang,
-}: TranslatorProps) {
+export default function Translator({ inputContent, detectedLang }) {
   const [selectedLang, setSelectedLang] = useState("");
   const [loading, setLoading] = useState(false);
   const [, setTranslationService] = useState(null);
   const [outputText, setOutputText] = useState("");
   const [outputLang, setOutputLang] = useState("");
 
-  const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleLanguageChange = (e) => {
     setSelectedLang(e.target.value);
   };
 
   const executeTranslation = async () => {
     if (!inputContent.trim()) {
-      toast.error("Please enter text to translate.", { duration: 3000 });
+      toast.error("Please enter text to translate.");
       return;
     }
-
     if (!detectedLang) {
       toast.error("No detected language available.");
       return;
@@ -46,6 +37,11 @@ export default function Translator({
     }
     if (detectedLang === selectedLang) {
       toast.error("Source and target languages must be different.");
+      return;
+    }
+
+    if (!self || !self.ai || !self.ai.translator) {
+      toast.error("AI translation service is unavailable.");
       return;
     }
 
@@ -77,9 +73,11 @@ export default function Translator({
           translator = await self.ai.translator.create({
             sourceLanguage: detectedLang,
             targetLanguage: selectedLang,
-            monitor(m: any) {
-              m.addEventListener("downloadprogress", (e: ProgressEvent) => {
-                console.log(`Downloaded ${e.loaded} of ${e.total} bytes...`);
+            monitor(m) {
+              m.addEventListener("downloadprogress", (e) => {
+                if (e.loaded && e.total) {
+                  console.log(`Downloaded ${e.loaded} of ${e.total} bytes...`);
+                }
               });
             },
           });

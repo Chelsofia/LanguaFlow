@@ -4,7 +4,22 @@ import { toast } from "react-hot-toast";
 
 declare global {
   interface Window {
-    ai: any;
+    ai?: {
+      summarizer?: {
+        capabilities: () => Promise<{ available: string }>;
+        create: (config: Record<string, unknown>) => Promise<{
+          summarize: (
+            text: string,
+            options?: { context?: string }
+          ) => Promise<string>;
+          ready?: Promise<void>;
+          addEventListener?: (
+            event: string,
+            callback: (event: { loaded: number; total: number }) => void
+          ) => void;
+        }>;
+      };
+    };
   }
 }
 
@@ -17,7 +32,13 @@ export default function SummaryComponent({
   textInput,
   detectedLang,
 }: SummaryComponentProps) {
-  const [, setAIProcessor] = useState(null);
+  const [, setAIProcessor] = useState<null | {
+    summarize: (
+      text: string,
+      options?: { context?: string }
+    ) => Promise<string>;
+  }>(null);
+
   const [generatedSummary, setGeneratedSummary] = useState("");
   const [totalWords, setTotalWords] = useState(0);
   const [isButtonVisible, setIsButtonVisible] = useState(false);
@@ -40,6 +61,11 @@ export default function SummaryComponent({
       return;
     }
 
+    if (typeof window === "undefined" || !window.ai?.summarizer) {
+      toast.error("Summarization AI is not supported in this environment.");
+      return;
+    }
+
     try {
       const config = {
         sharedContext: "Scientific document analysis",
@@ -48,7 +74,8 @@ export default function SummaryComponent({
         length: "medium",
       };
 
-      const summarizationCapabilities = await self.ai.summarizer.capabilities();
+      const summarizationCapabilities =
+        await window.ai.summarizer.capabilities();
       const summarizationAvailable = summarizationCapabilities.available;
 
       if (summarizationAvailable === "no") {
@@ -58,32 +85,35 @@ export default function SummaryComponent({
 
       let aiSummarizer;
       if (summarizationAvailable === "readily") {
-        aiSummarizer = await self.ai.summarizer.create(config);
+        aiSummarizer = await window.ai.summarizer.create(config);
       } else if (summarizationAvailable === "after-download") {
-        aiSummarizer = await self.ai.summarizer.create(config);
-        aiSummarizer.addEventListener(
-          "downloadprogress",
-          (event: { loaded: number; total: number }) => {
-            console.log(
-              `Downloading summarization model: ${event.loaded} / ${event.total} bytes.`
-            );
-          }
-        );
+        aiSummarizer = await window.ai.summarizer.create(config);
+        aiSummarizer.addEventListener?.("downloadprogress", (event) => {
+          console.log(
+            `Downloading summarization model: ${event.loaded} / ${event.total} bytes.`
+          );
+        });
 
-        await aiSummarizer.ready;
+        await aiSummarizer?.ready;
+      }
+
+      if (!aiSummarizer) {
+        toast.error("Failed to initialize summarizer.");
+        return;
       }
 
       toast.success("Summarizer ready.");
       setAIProcessor(aiSummarizer);
-      const sampleText =
-        "With non-streaming summarization, the model processes the input as a whole and then produces the output. To get a non-streaming summary, call the summarizer's asynchronous summarize() function. The first argument for the function is the text that you want to summarize. The second, optional argument is an object with a context field. This field lets you add background details that might improve the summarization.";
-      const summaryResult = await aiSummarizer.summarize(sampleText, {
+
+      const summaryResult = await aiSummarizer.summarize(textInput, {
         context: "Make it brief and concise.",
       });
+
       console.log(summaryResult);
       setGeneratedSummary(summaryResult);
     } catch (error) {
       console.error("Error during summarization:", error);
+      toast.error("Summarization failed.");
     }
   };
 
