@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useState } from "react";
 import SummaryComponent from "./SummaryComponent";
 import Translator from "./Translator";
 import ClearText from "./clearTextButton";
@@ -16,11 +17,37 @@ export default function ChatBox({
   inputText,
   detectedLanguage,
 }: ChatBoxProps) {
-  if (messages.length === 0) {
+  const [storedMessages, setStoredMessages] = useState<
+    { text: string; language?: string; confidence?: number }[]
+  >([]);
+
+  
+  useEffect(() => {
+    const savedMessages = localStorage.getItem("chatMessages");
+    if (savedMessages) {
+      setStoredMessages(JSON.parse(savedMessages));
+    }
+  }, []);
+
+ 
+  useEffect(() => {
+    if (messages.length > 0) {
+      setStoredMessages(messages);
+      localStorage.setItem("chatMessages", JSON.stringify(messages));
+    }
+  }, [messages]);
+
+  const handleClearMessages = () => {
+    setStoredMessages([]);
+    localStorage.removeItem("chatMessages");
+    clearMessages();
+  };
+
+  if (storedMessages.length === 0) {
     return (
       <section className="w-full h-auto mx-auto mt-12 p-2 my-2 border border-4 rounded-[20px] border-color">
         <section className="flex items-end m-1">
-          <ClearText messages={messages} clearMessages={clearMessages} />
+          <ClearText messages={storedMessages} clearMessages={handleClearMessages} />
         </section>
         <p className="text-center text-blue-700">No messages yet...</p>
       </section>
@@ -30,13 +57,13 @@ export default function ChatBox({
   return (
     <section
       className={`w-full h-auto mx-auto mt-12 p-2 my-2 border border-4 rounded-[20px] border-color ${
-        messages.length > 3 ? "max-h-[300px] overflow-y-auto" : ""
+        storedMessages.length > 3 ? "max-h-[300px] overflow-y-auto" : ""
       }`}
     >
       <section className="flex items-end m-1">
-        <ClearText messages={messages} clearMessages={clearMessages} />
+        <ClearText messages={storedMessages} clearMessages={handleClearMessages} />
       </section>
-      {messages.map((message, index) => (
+      {storedMessages.map((message, index) => (
         <section key={index} className="mb-5">
           <section className="text-[0.9rem] rounded-md bg-[#D62828] border border-black mb-1 w-full max-w-fit flex flex-col gap-2 p-1">
             {message.text}
